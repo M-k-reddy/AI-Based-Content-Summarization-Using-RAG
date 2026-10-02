@@ -21,7 +21,14 @@ from llm.generator import LLMGenerator
 router = APIRouter()
 
 # ---------- GLOBAL STATE (Simple Session-Based) ----------
-embedder = TextEmbedder()
+_embedder: TextEmbedder | None = None
+
+def get_embedder() -> TextEmbedder:
+    global _embedder
+    if _embedder is None:
+        _embedder = TextEmbedder()
+    return _embedder
+
 vector_store: FaissVectorStore | None = None
 cognitive_estimator = CognitiveStateEstimator()
 llm = LLMGenerator()
@@ -66,7 +73,7 @@ async def upload_document(file: UploadFile = File(...)):
         chunks = chunk_text(text, document_id, file.filename)
 
         texts = [chunk.text for chunk in chunks]
-        embeddings = embedder.embed_texts(texts)
+        embeddings = get_embedder().embed_texts(texts)
 
         # Initialize vector store if needed
         if vector_store is None:
@@ -104,7 +111,7 @@ async def ask_question(payload: dict):
 
     retriever = AdaptiveRetriever(
         vector_store=vector_store,
-        embedder=embedder,
+        embedder=get_embedder(),
         cognitive_estimator=cognitive_estimator
     )
 
