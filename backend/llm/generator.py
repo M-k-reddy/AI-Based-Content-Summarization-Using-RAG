@@ -8,11 +8,10 @@ except ImportError:
 
 class LLMGenerator:
     def __init__(self):
-        # Cloud LLM (Groq) for 100% free cloud deployment without high RAM
         raw_key = os.getenv("GROQ_API_KEY", "")
         # Clean any quotes or accidental spaces from environment variable input
         self.groq_api_key = raw_key.strip().strip('"').strip("'")
-        self.groq_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant").strip()
+        self.groq_model = os.getenv("GROQ_MODEL", "").strip()
 
         # Local Ollama configuration
         self.ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
@@ -20,17 +19,67 @@ class LLMGenerator:
 
         self.groq_client = None
         if self.groq_api_key and Groq is not None:
-            self.groq_client = Groq(api_key=self.groq_api_key)
+            try:
+                self.groq_client = Groq(api_key=self.groq_api_key)
+            except Exception as e:
+                print("Failed to init Groq client:", e)
+
+    def _get_active_groq_model(self) -> str:
+        if self.groq_model:
+            return self.groq_model
+
+        # Auto-detect available models from Groq API so it never 404s
+        fallback_preference = [
+            "llama-3.3-70b-versatile",
+            "openai/gpt-oss-20b",
+            "qwen/qwen3.6-27b",
+            "llama-3.1-8b-instant",
+            "llama3-8b-8192",
+            "mixtral-8x7b-32768",
+            "gemma2-9b-it"
+        ]
+
+        if self.groq_client:
+            try:
+                models_data = self.groq_client.models.list().data
+                available = [
+                    m.id for m in models_data 
+                    if not m.id.startswith("whisper") and not m.id.startswith("distil-whisper")
+                ]
+                for pref in fallback_preference:
+                    if pref in available:
+                        self.groq_model = pref
+                        return pref
+                if available:
+                    self.groq_model = available[0]
+                    return available[0]
+            except Exception as e:
+                print("Could not query Groq models list:", e)
+
+        return "llama-3.3-70b-versatile"
 
     def generate(self, prompt: str) -> str:
         # Option 1: Use official Groq SDK if key is provided
         if self.groq_client:
-            chat_completion = self.groq_client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model=self.groq_model,
-                temperature=0.2,
-            )
-            return chat_completion.choices[0].message.content.strip()
+            model = self._get_active_groq_model()
+            try:
+                chat_completion = self.groq_client.chat.completions.create(
+                    messages=[{"role": "user", "content": prompt}],
+                    model=model,
+                    temperature=0.2,
+                )
+                return chat_completion.choices[0].message.content.strip()
+            except Exception as e:
+                # If the chosen model hits any issue, fallback to llama-3.3-70b-versatile
+                try:
+                    chat_completion = self.groq_client.chat.completions.create(
+                        messages=[{"role": "user", "content": prompt}],
+                        model="llama-3.3-70b-versatile",
+                        temperature=0.2,
+                    )
+                    return chat_completion.choices[0].message.content.strip()
+                except Exception:
+                    raise e
 
         # Option 2: Fallback to requests if Groq key exists without SDK
         if self.groq_api_key:
@@ -41,7 +90,7 @@ class LLMGenerator:
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": self.groq_model,
+                    "model": "llama-3.3-70b-versatile",
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.2
                 },
