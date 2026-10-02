@@ -9,3 +9,4 @@ pydantic
 requests
 pytest
 python-multipart
+groq

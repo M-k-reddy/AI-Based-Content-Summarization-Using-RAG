@@ -99,15 +99,27 @@ async def upload_document(file: UploadFile = File(...)):
 async def ask_question(payload: dict):
     global previous_questions
 
-    if vector_store is None:
-        raise HTTPException(
-            status_code=400,
-            detail="No documents uploaded yet"
-        )
-
     question = payload.get("question")
     if not question:
         raise HTTPException(status_code=400, detail="Question is required")
+
+    if vector_store is None:
+        general_prompt = (
+            f"The user asked: {question}\n\n"
+            f"Answer the question helpfully and concisely. At the very end, add a short friendly note: "
+            f"'\n\n*(Tip: Upload a document (.pdf, .docx, or .txt) on the left panel to ask questions directly about your files!)*'"
+        )
+        try:
+            answer = llm.generate(general_prompt)
+        except Exception as e:
+            answer = "Please upload a document (.pdf, .docx, or .txt) using the panel on the left to start asking questions about your content!"
+        
+        return {
+            "answer": answer,
+            "detected_level": "beginner",
+            "sources": []
+        }
+
 
     retriever = AdaptiveRetriever(
         vector_store=vector_store,
