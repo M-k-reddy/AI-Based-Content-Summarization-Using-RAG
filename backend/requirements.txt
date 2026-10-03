@@ -10,3 +10,4 @@ requests
 pytest
 python-multipart
 groq
+openai
