@@ -16,41 +16,47 @@ class LLMGenerator:
     """
     Universal LLM Generator supporting any provider:
     - Ollama (Local or Remote, with optional OLLAMA_API_KEY)
-    - Groq (GROQ_API_KEY)
-    - OpenAI (OPENAI_API_KEY)
+    - Groq (GROQ_API_KEY, GROQ_KEY)
+    - OpenAI (OPENAI_API_KEY, OPENAI_KEY)
     - DeepSeek (DEEPSEEK_API_KEY)
     - OpenRouter (OPENROUTER_API_KEY)
     - Google Gemini (GEMINI_API_KEY)
-    - Any custom OpenAI-compatible provider (LLM_API_KEY, LLM_BASE_URL, LLM_MODEL)
+    - Any custom OpenAI-compatible provider (LLM_API_KEY, API_KEY)
     """
 
     def __init__(self):
-        # 1. Generic / Custom OpenAI-compatible provider (Works with ANY API)
-        self.llm_api_key = os.getenv("LLM_API_KEY", "").strip().strip('"').strip("'")
+        # 1. Generic / Custom OpenAI-compatible provider
+        raw_generic = os.getenv("LLM_API_KEY") or os.getenv("API_KEY") or ""
+        self.llm_api_key = raw_generic.strip().strip('"').strip("'")
         self.llm_base_url = os.getenv("LLM_BASE_URL", "").strip().strip('"').strip("'")
         self.llm_model = os.getenv("LLM_MODEL", "").strip()
 
-        # 2. OpenAI
-        self.openai_api_key = os.getenv("OPENAI_API_KEY", "").strip().strip('"').strip("'")
+        # 2. OpenAI (support OPENAI_API_KEY or OPENAI_KEY)
+        raw_openai = os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_KEY") or ""
+        self.openai_api_key = raw_openai.strip().strip('"').strip("'")
         self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip()
 
-        # 3. Groq
-        self.groq_api_key = os.getenv("GROQ_API_KEY", "").strip().strip('"').strip("'")
+        # 3. Groq (support GROQ_API_KEY, GROQ_KEY, GROQ_TOKEN)
+        raw_groq = os.getenv("GROQ_API_KEY") or os.getenv("GROQ_KEY") or os.getenv("GROQ_TOKEN") or ""
+        self.groq_api_key = raw_groq.strip().strip('"').strip("'")
         self.groq_model = os.getenv("GROQ_MODEL", "").strip()
 
         # 4. DeepSeek
-        self.deepseek_api_key = os.getenv("DEEPSEEK_API_KEY", "").strip().strip('"').strip("'")
+        raw_deepseek = os.getenv("DEEPSEEK_API_KEY") or os.getenv("DEEPSEEK_KEY") or ""
+        self.deepseek_api_key = raw_deepseek.strip().strip('"').strip("'")
         self.deepseek_model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat").strip()
 
         # 5. OpenRouter
-        self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY", "").strip().strip('"').strip("'")
+        raw_openrouter = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENROUTER_KEY") or ""
+        self.openrouter_api_key = raw_openrouter.strip().strip('"').strip("'")
         self.openrouter_model = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free").strip()
 
-        # 6. Gemini (OpenAI-compatible endpoint)
-        self.gemini_api_key = os.getenv("GEMINI_API_KEY", "").strip().strip('"').strip("'")
+        # 6. Gemini
+        raw_gemini = os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_KEY") or ""
+        self.gemini_api_key = raw_gemini.strip().strip('"').strip("'")
         self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
 
-        # 7. Ollama (Supports local or remote/cloud Ollama with optional API Key)
+        # 7. Ollama
         raw_ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434").strip().rstrip("/")
         if raw_ollama_url.endswith("/api/generate"):
             self.ollama_base = raw_ollama_url[:-13]
@@ -59,10 +65,11 @@ class LLMGenerator:
         else:
             self.ollama_base = raw_ollama_url
 
-        self.ollama_api_key = os.getenv("OLLAMA_API_KEY", "").strip().strip('"').strip("'")
+        raw_ollama_key = os.getenv("OLLAMA_API_KEY") or os.getenv("OLLAMA_KEY") or ""
+        self.ollama_api_key = raw_ollama_key.strip().strip('"').strip("'")
         self.ollama_model = os.getenv("OLLAMA_MODEL", "phi3:mini").strip()
 
-        # Setup client based on available environment variables
+        # Setup client
         self.client = None
         self.active_provider = None
         self.active_model = None
@@ -212,14 +219,24 @@ class LLMGenerator:
                 return data["response"].strip()
         except Exception:
             # Fallback to Ollama's OpenAI-compatible /v1/chat/completions
-            v1_url = f"{self.ollama_base}/v1/chat/completions"
-            v1_payload = {
-                "model": self.ollama_model,
-                "messages": [{"role": "user", "content": prompt}],
-            }
-            resp = requests.post(v1_url, json=v1_payload, headers=headers, timeout=120)
-            resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"].strip()
+            try:
+                v1_url = f"{self.ollama_base}/v1/chat/completions"
+                v1_payload = {
+                    "model": self.ollama_model,
+                    "messages": [{"role": "user", "content": prompt}],
+                }
+                resp = requests.post(v1_url, json=v1_payload, headers=headers, timeout=120)
+                resp.raise_for_status()
+                data = resp.json()
+                return data["choices"][0]["message"]["content"].strip()
+            except Exception:
+                # If running in cloud with localhost URL, provide a crystal clear explanation
+                if "localhost" in self.ollama_base or "127.0.0.1" in self.ollama_base:
+                    raise RuntimeError(
+                        "No cloud API key found (e.g. GROQ_API_KEY, OPENAI_API_KEY) in Render Environment Variables, "
+                        "and Ollama is not running on this server. "
+                        "Please go to your Render Dashboard -> Environment, and add GROQ_API_KEY (or OPENAI_API_KEY / OLLAMA_URL)."
+                    )
+                raise RuntimeError(f"Could not connect to Ollama server at {self.ollama_base}")
 
         return "No response from model."
