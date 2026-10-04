@@ -14,8 +14,8 @@ const features = [
   },
   {
     icon: ShieldCheck,
-    title: "Fully Offline",
-    description: "Runs entirely on local LLMs. Your data never leaves your machine."
+    title: "Flexible Deployment",
+    description: "Runs on local LLMs via Ollama for offline privacy, or scales to hosted cloud AI in deployment."
   },
   {
     icon: HardDrive,
@@ -39,9 +39,9 @@ export function WhatIsSection() {
             What is <span className="text-primary text-glow">RAG Summarization</span>?
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-            This is an offline, document-grounded AI system that dynamically adapts 
-            its explanations based on the user's cognitive level — making complex 
-            information accessible to everyone.
+            A document-grounded AI system that dynamically adapts its explanations 
+            based on your cognitive level — supporting both local private LLMs 
+            and scalable cloud deployments.
           </p>
         </motion.div>
 

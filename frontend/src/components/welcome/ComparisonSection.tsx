@@ -16,7 +16,7 @@ const comparisons = [
   },
   {
     traditional: "Cloud-dependent processing",
-    carag: "Fully local LLM inference"
+    carag: "Local Ollama or hosted cloud AI"
   }
 ];
 

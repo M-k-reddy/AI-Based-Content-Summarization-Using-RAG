@@ -1,22 +1,24 @@
 # AI based Content Summarization Using RAG
 
-An offline, document-grounded Retrieval-Augmented Generation (RAG) system that adapts its explanations and summaries to the user's cognitive level.
+A document-grounded Retrieval-Augmented Generation (RAG) system that adapts its explanations and summaries to the user's cognitive level (Beginner, Intermediate, Advanced).
 
 ## 🚀 Features
 
-- **Cognitive-Aware Adaptability**: Dynamically adjusts answer depth and complexity (Beginner, Intermediate, Advanced) based on user preference or automatic detection.
-- **Offline & Private**: Built entirely on local LLMs (Ollama) and local embeddings, ensuring your uploaded documents never leave your machine.
-- **Document Grounding**: Ingests files (`.pdf`, `.docx`, `.txt`) into a local FAISS vector store for semantic search and retrieval with source citations.
-- **Modern User Interface**: A futuristic, dark-themed responsive dashboard for easy document management and chat interactions.
+- **Cognitive-Aware Adaptability**: Dynamically adjusts explanation depth and technical complexity based on user preference or automatic cognitive detection.
+- **Hybrid LLM Architecture**: 
+  - **Local Development**: Runs 100% offline and private using local LLMs (Ollama with `phi3:mini`) and local SentenceTransformer embeddings, ensuring uploaded documents never leave your machine.
+  - **Cloud Deployment**: Seamlessly switches to hosted LLM APIs (Ollama Cloud, Groq, OpenAI, or Google Gemini) for scalable serverless cloud execution (Google Cloud Run / Render).
+- **Document Grounding**: Ingests files (`.pdf`, `.docx`, `.txt`, `.md` up to 30MB) into a FAISS vector store for semantic search and retrieval with transparent source citations.
+- **Modern Responsive Interface**: A futuristic, dark-themed dashboard with collapsible sidebars and fluid chat interaction.
 
 ---
 
 ## 🛠️ Prerequisites
 
-Before running the project, ensure you have the following installed:
+Before running the project locally, ensure you have the following installed:
 1. **Python** (version 3.10 or higher)
 2. **Node.js** (version 18 or higher) & **npm**
-3. **Ollama** (for local LLM inference)
+3. **Ollama** (for local offline LLM inference) *or* a Cloud LLM API key (Ollama Cloud, Groq, OpenAI, Gemini)
 
 ---
 

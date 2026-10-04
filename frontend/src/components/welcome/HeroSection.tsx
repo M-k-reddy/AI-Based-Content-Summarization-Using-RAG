@@ -43,7 +43,7 @@ export function HeroSection({ onEnter }: HeroSectionProps) {
       >
         An AI system that doesn't just retrieve answers —{" "}
         <span className="text-primary font-medium">it adapts how it explains</span>.
-        Powered by local LLMs with complete transparency and cognitive awareness.
+        Runs on local LLMs via Ollama in local mode, and hosted cloud AI in deployment.
       </motion.p>
 
       {/* CTA Button */}

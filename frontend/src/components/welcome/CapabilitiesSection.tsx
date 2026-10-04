@@ -19,8 +19,8 @@ const capabilities = [
   },
   {
     icon: Cpu,
-    title: "Local LLM Reasoning",
-    description: "Powerful language model runs entirely on your hardware"
+    title: "Flexible LLM Reasoning",
+    description: "Runs on local LLMs via Ollama in local mode, and hosted cloud AI in deployment"
   },
   {
     icon: Eye,
