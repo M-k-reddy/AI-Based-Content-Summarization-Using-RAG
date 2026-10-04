@@ -142,7 +142,7 @@ async def ask_question(payload: dict):
     except Exception as e:
         raise HTTPException(
             status_code=503,
-            detail=f"LLM service unavailable. Make sure Ollama is running on localhost:11434. Error: {str(e)}"
+            detail=f"LLM service error: {str(e)}"
         )
 
     previous_questions.append(question)

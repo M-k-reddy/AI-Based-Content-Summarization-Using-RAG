@@ -69,6 +69,30 @@ class LLMGenerator:
         self.ollama_api_key = raw_ollama_key.strip().strip('"').strip("'")
         self.ollama_model = os.getenv("OLLAMA_MODEL", "phi3:mini").strip()
 
+        # Smart key prefix detection:
+        # If user saved a key under OLLAMA_API_KEY or LLM_API_KEY, detect what provider it actually is:
+        candidate_keys = [
+            self.ollama_api_key,
+            self.llm_api_key,
+            self.groq_api_key,
+            self.openai_api_key,
+            self.openrouter_api_key,
+            self.deepseek_api_key,
+            self.gemini_api_key,
+        ]
+
+        for k in candidate_keys:
+            if not k:
+                continue
+            if k.startswith("gsk_") and not self.groq_api_key:
+                self.groq_api_key = k
+            elif k.startswith("sk-or-") and not self.openrouter_api_key:
+                self.openrouter_api_key = k
+            elif k.startswith("AIza") and not self.gemini_api_key:
+                self.gemini_api_key = k
+            elif (k.startswith("sk-proj-") or (k.startswith("sk-") and not k.startswith("sk-or-"))) and not self.openai_api_key:
+                self.openai_api_key = k
+
         # Setup client
         self.client = None
         self.active_provider = None
@@ -78,23 +102,16 @@ class LLMGenerator:
 
     def _setup_provider(self):
         # 1. Custom / Universal provider
-        if self.llm_api_key and OpenAI is not None:
+        if self.llm_api_key and self.llm_base_url and OpenAI is not None:
             self.active_provider = "custom"
             self.active_model = self.llm_model or "gpt-3.5-turbo"
             self.client = OpenAI(
                 api_key=self.llm_api_key,
-                base_url=self.llm_base_url if self.llm_base_url else None,
+                base_url=self.llm_base_url,
             )
             return
 
-        # 2. OpenAI
-        if self.openai_api_key and OpenAI is not None:
-            self.active_provider = "openai"
-            self.active_model = self.openai_model
-            self.client = OpenAI(api_key=self.openai_api_key)
-            return
-
-        # 3. Groq
+        # 2. Groq
         if self.groq_api_key:
             if Groq is not None:
                 self.active_provider = "groq"
@@ -105,6 +122,13 @@ class LLMGenerator:
                     base_url="https://api.groq.com/openai/v1",
                     api_key=self.groq_api_key,
                 )
+            return
+
+        # 3. OpenAI
+        if self.openai_api_key and OpenAI is not None:
+            self.active_provider = "openai"
+            self.active_model = self.openai_model
+            self.client = OpenAI(api_key=self.openai_api_key)
             return
 
         # 4. DeepSeek
@@ -203,6 +227,9 @@ class LLMGenerator:
         if self.ollama_api_key:
             headers["Authorization"] = f"Bearer {self.ollama_api_key}"
 
+        # If ollama_base is still localhost/127.0.0.1, check if we are in cloud
+        is_local = "localhost" in self.ollama_base or "127.0.0.1" in self.ollama_base
+
         # Try native /api/generate
         payload = {
             "model": self.ollama_model,
@@ -212,7 +239,7 @@ class LLMGenerator:
         url = f"{self.ollama_base}/api/generate"
 
         try:
-            resp = requests.post(url, json=payload, headers=headers, timeout=120)
+            resp = requests.post(url, json=payload, headers=headers, timeout=15)
             resp.raise_for_status()
             data = resp.json()
             if "response" in data:
@@ -225,18 +252,18 @@ class LLMGenerator:
                     "model": self.ollama_model,
                     "messages": [{"role": "user", "content": prompt}],
                 }
-                resp = requests.post(v1_url, json=v1_payload, headers=headers, timeout=120)
+                resp = requests.post(v1_url, json=v1_payload, headers=headers, timeout=15)
                 resp.raise_for_status()
                 data = resp.json()
                 return data["choices"][0]["message"]["content"].strip()
-            except Exception:
-                # If running in cloud with localhost URL, provide a crystal clear explanation
-                if "localhost" in self.ollama_base or "127.0.0.1" in self.ollama_base:
+            except Exception as e:
+                if is_local:
                     raise RuntimeError(
-                        "No cloud API key found (e.g. GROQ_API_KEY, OPENAI_API_KEY) in Render Environment Variables, "
-                        "and Ollama is not running on this server. "
-                        "Please go to your Render Dashboard -> Environment, and add GROQ_API_KEY (or OPENAI_API_KEY / OLLAMA_URL)."
+                        "Ollama is pointing to 'localhost:11434'. Because your backend is hosted in the cloud on Render, "
+                        "it cannot reach your local computer. "
+                        "To fix this: If your key starts with 'gsk_', add it as GROQ_API_KEY in Render. "
+                        "If you have a remote Ollama server, set OLLAMA_URL to its public address."
                     )
-                raise RuntimeError(f"Could not connect to Ollama server at {self.ollama_base}")
+                raise RuntimeError(f"Could not connect to Ollama at {self.ollama_base}: {str(e)}")
 
         return "No response from model."
