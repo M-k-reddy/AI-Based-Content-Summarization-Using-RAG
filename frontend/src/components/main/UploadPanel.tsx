@@ -96,7 +96,7 @@ export function UploadPanel({ documents, isUploading, onUpload, onReset }: Uploa
           {isDragging ? "Drop files here" : "Drag & drop or click"}
         </span>
         <span className="text-xs text-muted-foreground mt-1">
-          PDF, DOCX, TXT, MD
+          PDF, DOCX, TXT, MD (up to 30MB)
         </span>
 
         {isDragging && (

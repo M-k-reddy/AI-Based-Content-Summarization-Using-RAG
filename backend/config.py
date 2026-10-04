@@ -1,6 +1,6 @@
 # config.py
 
-MAX_FILE_SIZE_MB = 10
+MAX_FILE_SIZE_MB = 30
 
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".md"}
 
