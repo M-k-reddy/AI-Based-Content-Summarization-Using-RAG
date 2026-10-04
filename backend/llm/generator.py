@@ -243,6 +243,23 @@ class LLMGenerator:
         # Local Ollama default
         return "phi3:mini"
 
+    def _clean_output(self, text: str) -> str:
+        if not text:
+            return ""
+        import re
+        # Clean non-breaking hyphens and special dashes
+        for char in ["\u2010", "\u2011", "\u2012", "\u2013", "\u2014"]:
+            text = text.replace(char, "-")
+        # Clean non-breaking spaces
+        text = text.replace("\u00a0", " ")
+        # Clean LaTeX math wrappers \( ... \) and \[ ... \]
+        text = re.sub(r"\\\[(.*?)\\\]", r"\1", text)
+        text = re.sub(r"\\\((.*?)\\\)", r"\1", text)
+        text = text.replace(r"\(", "").replace(r"\)", "").replace(r"\[", "").replace(r"\]", "")
+        # Clean smart quotes
+        text = text.replace("\u2018", "'").replace("\u2019", "'").replace("\u201c", '"').replace("\u201d", '"')
+        return text.strip()
+
     def generate(self, prompt: str) -> str:
         # Standard OpenAI-compatible API call
         if self.active_provider in ["custom", "openai", "deepseek", "openrouter", "gemini"]:
@@ -251,7 +268,7 @@ class LLMGenerator:
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2,
             )
-            return res.choices[0].message.content.strip()
+            return self._clean_output(res.choices[0].message.content)
 
         # Groq with dynamic model resolution
         if self.active_provider in ["groq", "groq_openai"]:
@@ -262,14 +279,14 @@ class LLMGenerator:
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.2,
                 )
-                return res.choices[0].message.content.strip()
+                return self._clean_output(res.choices[0].message.content)
             except Exception:
                 res = self.client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.2,
                 )
-                return res.choices[0].message.content.strip()
+                return self._clean_output(res.choices[0].message.content)
 
         # Ollama call (supports Ollama Cloud with API Key, or Local Ollama)
         headers = {"Content-Type": "application/json"}
@@ -291,7 +308,7 @@ class LLMGenerator:
             if resp.status_code == 200:
                 data = resp.json()
                 if "message" in data and "content" in data["message"]:
-                    return data["message"]["content"].strip()
+                    return self._clean_output(data["message"]["content"])
             last_err = f"Status {resp.status_code}: {resp.text}"
         except Exception as e:
             last_err = str(e)
@@ -306,7 +323,7 @@ class LLMGenerator:
             resp = requests.post(v1_url, json=v1_payload, headers=headers, timeout=60)
             if resp.status_code == 200:
                 data = resp.json()
-                return data["choices"][0]["message"]["content"].strip()
+                return self._clean_output(data["choices"][0]["message"]["content"])
             last_err = f"Status {resp.status_code}: {resp.text}"
         except Exception as e:
             last_err = str(e)
@@ -323,7 +340,7 @@ class LLMGenerator:
             if resp.status_code == 200:
                 data = resp.json()
                 if "response" in data:
-                    return data["response"].strip()
+                    return self._clean_output(data["response"])
             last_err = f"Status {resp.status_code}: {resp.text}"
         except Exception as e:
             last_err = str(e)

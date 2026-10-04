@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { User, Bot, FileText } from "lucide-react";
 import { CognitiveBadge } from "./CognitiveBadge";
+import { FormattedMessage } from "./FormattedMessage";
 import type { Message } from "@/hooks/useApi";
 
 interface MessageBubbleProps {
@@ -36,12 +37,10 @@ export function MessageBubble({ message, onSourceClick }: MessageBubbleProps) {
           inline-block p-4 rounded-2xl
           ${isUser 
             ? "bg-primary text-primary-foreground rounded-tr-sm" 
-            : "glass-card rounded-tl-sm"
+            : "glass-card rounded-tl-sm text-left"
           }
         `}>
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">
-            {message.content}
-          </p>
+          <FormattedMessage content={message.content} isUser={isUser} />
         </div>
 
         {/* Cognitive Level Badge & Sources (for AI messages) */}
