@@ -31,36 +31,60 @@ export async function uploadDocument(file: File): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch(`${API_BASE}/upload`, {
-    method: "POST",
-    body: formData,
-  });
+  try {
+    const res = await fetch(`${API_BASE}/upload`, {
+      method: "POST",
+      body: formData,
+    });
 
-  if (!res.ok) {
-    throw new Error(`Upload failed: ${res.statusText}`);
+    if (!res.ok) {
+      let msg = `Upload failed (${res.status} ${res.statusText})`;
+      try {
+        const data = await res.json();
+        if (data && data.detail) msg = data.detail;
+      } catch (_) {}
+      throw new Error(msg);
+    }
+
+    return res.json();
+  } catch (err: any) {
+    if (err.message && !err.message.includes("Failed to fetch") && !err.message.includes("NetworkError")) {
+      throw err;
+    }
+    throw new Error("Backend server is waking up or deploying. Please wait 10 seconds and try again.");
   }
-
-  return res.json();
 }
 
 export async function askQuestion(
   question: string,
   preferredLevel?: "beginner" | "intermediate" | "advanced"
 ): Promise<AskResponse> {
-  const res = await fetch(`${API_BASE}/ask`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ 
-      question,
-      preferred_level: preferredLevel 
-    }),
-  });
+  try {
+    const res = await fetch(`${API_BASE}/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        question,
+        preferred_level: preferredLevel 
+      }),
+    });
 
-  if (!res.ok) {
-    throw new Error(`Question failed: ${res.statusText}`);
+    if (!res.ok) {
+      let msg = `Question failed (${res.status} ${res.statusText})`;
+      try {
+        const data = await res.json();
+        if (data && data.detail) msg = data.detail;
+      } catch (_) {}
+      throw new Error(msg);
+    }
+
+    return res.json();
+  } catch (err: any) {
+    if (err.message && !err.message.includes("Failed to fetch") && !err.message.includes("NetworkError")) {
+      throw err;
+    }
+    throw new Error("Backend server is waking up or deploying. Please wait 10 seconds and try again.");
   }
-
-  return res.json();
 }
 
 export async function resetSession(): Promise<ResetResponse> {

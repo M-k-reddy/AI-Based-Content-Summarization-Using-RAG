@@ -35,10 +35,10 @@ export default function MainApp() {
         title: "Document uploaded",
         description: `${file.name} has been indexed successfully.`
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Upload failed",
-        description: "Could not upload the document. Please try again.",
+        description: error?.message || "Could not upload the document. Please try again.",
         variant: "destructive"
       });
     }
@@ -47,10 +47,10 @@ export default function MainApp() {
   const handleAsk = async (question: string, level?: "beginner" | "intermediate" | "advanced") => {
     try {
       await ask(question, level);
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to get a response. Is the backend running?",
+        description: error?.message || "Failed to get a response. Is the backend running?",
         variant: "destructive"
       });
     }

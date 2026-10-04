@@ -53,20 +53,29 @@ async def upload_document(file: UploadFile = File(...)):
 
     try:
         # Validate file
-        ext = validate_file(temp_path)
+        try:
+            ext = validate_file(temp_path)
+        except ValueError as ve:
+            raise HTTPException(status_code=400, detail=str(ve))
 
         # Extract text
-        if ext == ".pdf":
-            text = extract_text_from_pdf(temp_path)
-        elif ext == ".docx":
-            text = extract_text_from_docx(temp_path)
-        else:
-            text = extract_text_from_txt(temp_path)
+        try:
+            if ext == ".pdf":
+                text = extract_text_from_pdf(temp_path)
+            elif ext == ".docx":
+                text = extract_text_from_docx(temp_path)
+            else:
+                text = extract_text_from_txt(temp_path)
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not read document contents: {str(e)}"
+            )
 
         if not text.strip():
             raise HTTPException(
                 status_code=400,
-                detail="Uploaded document contains no readable text"
+                detail="Uploaded document contains no readable text or is empty."
             )
 
         # Chunk document

@@ -80,7 +80,7 @@ export function UploadPanel({ documents, isUploading, onUpload, onReset }: Uploa
         <input
           type="file"
           className="hidden"
-          accept=".pdf,.docx,.txt"
+          accept=".pdf,.docx,.txt,.md"
           multiple
           onChange={handleFileSelect}
           disabled={isUploading}
@@ -96,7 +96,7 @@ export function UploadPanel({ documents, isUploading, onUpload, onReset }: Uploa
           {isDragging ? "Drop files here" : "Drag & drop or click"}
         </span>
         <span className="text-xs text-muted-foreground mt-1">
-          PDF, DOCX, TXT
+          PDF, DOCX, TXT, MD
         </span>
 
         {isDragging && (
