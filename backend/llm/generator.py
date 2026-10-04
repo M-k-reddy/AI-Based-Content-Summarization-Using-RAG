@@ -15,7 +15,7 @@ except ImportError:
 class LLMGenerator:
     """
     Universal LLM Generator supporting:
-    - Ollama Cloud (OLLAMA_API_KEY -> https://ollama.com/api)
+    - Ollama Cloud (OLLAMA_API_KEY -> https://ollama.com)
     - Ollama Local (OLLAMA_URL=http://localhost:11434)
     - Groq (GROQ_API_KEY)
     - OpenAI (OPENAI_API_KEY)
@@ -60,10 +60,9 @@ class LLMGenerator:
         # 7. Ollama (Cloud or Local)
         raw_ollama_key = os.getenv("OLLAMA_API_KEY") or os.getenv("OLLAMA_KEY") or ""
         self.ollama_api_key = raw_ollama_key.strip().strip('"').strip("'")
-        self.ollama_model = os.getenv("OLLAMA_MODEL", "phi3:mini").strip()
+        self.ollama_model = os.getenv("OLLAMA_MODEL", "").strip()
 
         # If OLLAMA_API_KEY is provided and no OLLAMA_URL is set, use official Ollama Cloud (https://ollama.com)
-        # If no key, default to local Ollama (http://localhost:11434)
         default_ollama_url = "https://ollama.com" if self.ollama_api_key else "http://localhost:11434"
         raw_ollama_url = os.getenv("OLLAMA_URL", default_ollama_url).strip().rstrip("/")
         
@@ -208,6 +207,42 @@ class LLMGenerator:
 
         return "llama-3.3-70b-versatile"
 
+    def _get_ollama_model(self) -> str:
+        if self.ollama_model:
+            return self.ollama_model
+
+        # Auto-detect available models on Ollama Cloud (https://ollama.com)
+        if "ollama.com" in self.ollama_base:
+            try:
+                headers = {}
+                if self.ollama_api_key:
+                    headers["Authorization"] = f"Bearer {self.ollama_api_key}"
+                resp = requests.get(f"{self.ollama_base}/v1/models", headers=headers, timeout=5)
+                if resp.status_code == 200:
+                    data = resp.json().get("data", [])
+                    available_ids = [m["id"] for m in data]
+                    preference = [
+                        "gpt-oss:20b",
+                        "deepseek-v4.1-flash",
+                        "glm-5.3-flash",
+                        "nemotron-3-nano:30b",
+                        "gemma4:31b",
+                        "kimi-k2.6"
+                    ]
+                    for p in preference:
+                        if p in available_ids:
+                            self.ollama_model = p
+                            return p
+                    if available_ids:
+                        self.ollama_model = available_ids[0]
+                        return available_ids[0]
+            except Exception:
+                pass
+            return "gpt-oss:20b"
+
+        # Local Ollama default
+        return "phi3:mini"
+
     def generate(self, prompt: str) -> str:
         # Standard OpenAI-compatible API call
         if self.active_provider in ["custom", "openai", "deepseek", "openrouter", "gemini"]:
@@ -241,13 +276,14 @@ class LLMGenerator:
         if self.ollama_api_key:
             headers["Authorization"] = f"Bearer {self.ollama_api_key}"
 
+        model = self._get_ollama_model()
         last_err = None
 
         # 1. Try /api/chat
         try:
             chat_url = f"{self.ollama_base}/api/chat"
             chat_payload = {
-                "model": self.ollama_model,
+                "model": model,
                 "messages": [{"role": "user", "content": prompt}],
                 "stream": False,
             }
@@ -256,15 +292,30 @@ class LLMGenerator:
                 data = resp.json()
                 if "message" in data and "content" in data["message"]:
                     return data["message"]["content"].strip()
-            resp.raise_for_status()
+            last_err = f"Status {resp.status_code}: {resp.text}"
         except Exception as e:
-            last_err = e
+            last_err = str(e)
 
-        # 2. Try /api/generate
+        # 2. Try /v1/chat/completions (OpenAI-compatible)
+        try:
+            v1_url = f"{self.ollama_base}/v1/chat/completions"
+            v1_payload = {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            resp = requests.post(v1_url, json=v1_payload, headers=headers, timeout=60)
+            if resp.status_code == 200:
+                data = resp.json()
+                return data["choices"][0]["message"]["content"].strip()
+            last_err = f"Status {resp.status_code}: {resp.text}"
+        except Exception as e:
+            last_err = str(e)
+
+        # 3. Try /api/generate
         try:
             gen_url = f"{self.ollama_base}/api/generate"
             gen_payload = {
-                "model": self.ollama_model,
+                "model": model,
                 "prompt": prompt,
                 "stream": False,
             }
@@ -273,29 +324,14 @@ class LLMGenerator:
                 data = resp.json()
                 if "response" in data:
                     return data["response"].strip()
-            resp.raise_for_status()
+            last_err = f"Status {resp.status_code}: {resp.text}"
         except Exception as e:
-            last_err = e
-
-        # 3. Try /v1/chat/completions (OpenAI-compatible)
-        try:
-            v1_url = f"{self.ollama_base}/v1/chat/completions"
-            v1_payload = {
-                "model": self.ollama_model,
-                "messages": [{"role": "user", "content": prompt}],
-            }
-            resp = requests.post(v1_url, json=v1_payload, headers=headers, timeout=60)
-            if resp.status_code == 200:
-                data = resp.json()
-                return data["choices"][0]["message"]["content"].strip()
-            resp.raise_for_status()
-        except Exception as e:
-            last_err = e
+            last_err = str(e)
 
         if "localhost" in self.ollama_base or "127.0.0.1" in self.ollama_base:
             raise RuntimeError(
                 f"Ollama is pointing to {self.ollama_base}. In the cloud, it cannot reach your local PC. "
-                f"If using Ollama Cloud, set OLLAMA_URL=https://ollama.com. Error: {str(last_err)}"
+                f"If using Ollama Cloud, set OLLAMA_URL=https://ollama.com. Error: {last_err}"
             )
 
-        raise RuntimeError(f"Ollama request to {self.ollama_base} failed: {str(last_err)}")
+        raise RuntimeError(f"Ollama request to {self.ollama_base} (model: {model}) failed: {last_err}")
