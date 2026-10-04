@@ -37,7 +37,7 @@ export function TopBar({ isOnline }: TopBarProps) {
           ) : isOnline ? (
             <>
               <Wifi className="w-4 h-4 text-primary" />
-              <span className="text-xs font-medium text-primary">Local LLM: Online</span>
+              <span className="text-xs font-medium text-primary">LLM: Online</span>
               <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             </>
           ) : (
