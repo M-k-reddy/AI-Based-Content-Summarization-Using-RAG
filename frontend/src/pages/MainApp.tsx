@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { TopBar } from "@/components/main/TopBar";
 import { UploadPanel } from "@/components/main/UploadPanel";
 import { ChatBox } from "@/components/main/ChatBox";
@@ -21,6 +21,24 @@ export default function MainApp() {
     checkStatus
   } = useApi();
   const { toast } = useToast();
+
+  // Responsive sidebar toggles
+  const [showDocs, setShowDocs] = useState(true);
+  const [showSources, setShowSources] = useState(false);
+
+  // Auto-collapse sources on smaller screens initially
+  useEffect(() => {
+    if (window.innerWidth >= 1280) {
+      setShowSources(true);
+    }
+  }, []);
+
+  // When sources are fetched after a question, open sources panel
+  useEffect(() => {
+    if (currentSources && currentSources.length > 0) {
+      setShowSources(true);
+    }
+  }, [currentSources]);
 
   useEffect(() => {
     checkStatus();
@@ -76,25 +94,62 @@ export default function MainApp() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="h-screen flex flex-col bg-background"
+      className="h-screen flex flex-col bg-background overflow-hidden"
     >
-      <TopBar isOnline={isOnline} />
+      <TopBar 
+        isOnline={isOnline} 
+        showDocs={showDocs}
+        onToggleDocs={() => setShowDocs(!showDocs)}
+        showSources={showSources}
+        onToggleSources={() => setShowSources(!showSources)}
+        documentsCount={documents.length}
+        sourcesCount={currentSources.length}
+      />
       
-      <div className="flex-1 grid grid-cols-[280px_1fr_320px] gap-0 overflow-hidden">
-        <UploadPanel 
-          documents={documents}
-          isUploading={isUploading}
-          onUpload={handleUpload}
-          onReset={handleReset}
-        />
+      <div className="flex-1 flex overflow-hidden w-full relative">
+        {/* Documents Left Sidebar */}
+        <AnimatePresence initial={false}>
+          {showDocs && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: "auto", opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="w-[260px] md:w-[280px] shrink-0 h-full border-r border-border overflow-hidden"
+            >
+              <UploadPanel 
+                documents={documents}
+                isUploading={isUploading}
+                onUpload={handleUpload}
+                onReset={handleReset}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
         
-        <ChatBox 
-          messages={messages}
-          isLoading={isLoading}
-          onSend={handleAsk}
-        />
+        {/* Main Flexible Chat Area */}
+        <div className="flex-1 min-w-0 h-full overflow-hidden flex flex-col">
+          <ChatBox 
+            messages={messages}
+            isLoading={isLoading}
+            onSend={handleAsk}
+          />
+        </div>
         
-        <SourcePanel sources={currentSources} />
+        {/* Sources Right Sidebar */}
+        <AnimatePresence initial={false}>
+          {showSources && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: "auto", opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="w-[280px] md:w-[320px] shrink-0 h-full border-l border-border overflow-hidden"
+            >
+              <SourcePanel sources={currentSources} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   );

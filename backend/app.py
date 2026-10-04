@@ -25,7 +25,7 @@ app.add_middleware(
 # API routes
 app.include_router(router)
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health():
     return {"status": "ok"}
 
@@ -36,7 +36,7 @@ if os.path.exists(static_dir):
     if os.path.exists(assets_dir):
         app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
-    @app.get("/{full_path:path}")
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
     async def serve_spa(full_path: str):
         file_path = os.path.join(static_dir, full_path)
         if full_path and os.path.exists(file_path) and os.path.isfile(file_path):
